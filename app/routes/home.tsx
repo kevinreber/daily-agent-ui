@@ -1,17 +1,21 @@
 import type { Route } from "./+types/home";
-import { Welcome } from "../welcome/welcome";
+import Dashboard from "../components/Dashboard";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "Morning Routine Dashboard" },
+    { name: "description", content: "Your personalized morning routine dashboard with AI assistance" },
   ];
 }
 
 export function loader({ context }: Route.LoaderArgs) {
-  return { message: "Hello from Vercel" };
+  // In a real app, this would fetch user data from a database
+  return { 
+    userName: "Kevin",
+    lastUpdated: new Date().toISOString()
+  };
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  return <Welcome message={loaderData.message} />;
+  return <Dashboard userName={loaderData.userName} />;
 }

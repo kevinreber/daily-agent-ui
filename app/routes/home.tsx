@@ -4,10 +4,10 @@ import { serverApiClient } from "../lib/api";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Morning Routine Dashboard" },
+    { title: "Daily Agent" },
     {
       name: "description",
-      content: "Your personalized morning routine dashboard with AI assistance",
+      content: "Your personalized daily AI agent",
     },
   ];
 }

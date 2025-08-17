@@ -3,30 +3,47 @@
 ## 📋 Prerequisites
 
 Before deploying, ensure you have:
+
 - ✅ AI Agent API deployed (Railway/Vercel)
 - ✅ MCP Server deployed (Railway)
 - ✅ All API endpoints working in production
 
 ## 🌍 Environment Variables Setup
 
+### 🎯 **Simple API URL Strategy**
+
+The UI uses a straightforward environment variable approach:
+
+1. **`VITE_AI_AGENT_API_URL`** - Set to your AI Agent API URL (dev or production)
+2. **Localhost fallback** - Defaults to `http://localhost:8001` if not set
+
+Simple and effective!
+
 ### 📱 **Local Development**
 
 Copy `.env.example` to `.env`:
+
 ```bash
 cp .env.example .env
 ```
 
 Update your `.env` file:
+
 ```bash
-# Local Development
+# AI Agent API URL (local development)
 VITE_AI_AGENT_API_URL=http://localhost:8001
+
+# Environment identifier
 VITE_ENVIRONMENT=development
+
+# Optional: Enable debug mode
 VITE_DEBUG=true
 ```
 
 ### 🚀 **Vercel Production**
 
 1. **Deploy to Vercel:**
+
    ```bash
    npm run build
    npx vercel --prod
@@ -40,11 +57,11 @@ VITE_DEBUG=true
    Name: VITE_AI_AGENT_API_URL
    Value: https://your-ai-agent-url.railway.app
    Environment: Production
-   
-   Name: VITE_ENVIRONMENT  
+
+   Name: VITE_ENVIRONMENT
    Value: production
    Environment: Production
-   
+
    Name: VITE_DEBUG
    Value: false
    Environment: Production
@@ -57,14 +74,16 @@ VITE_DEBUG=true
 
 ## 🔗 **AI Agent API URLs**
 
-You'll need to update the `VITE_AI_AGENT_API_URL` based on where your AI Agent is deployed:
+Configure your environment variables based on where your AI Agent is deployed:
 
 ### **Railway Deployment:**
+
 ```
 https://web-production-[hash].up.railway.app
 ```
 
 ### **Vercel Deployment:**
+
 ```
 https://daily-ai-agent-[hash].vercel.app
 ```
@@ -72,6 +91,7 @@ https://daily-ai-agent-[hash].vercel.app
 ## 🧪 **Testing Production Setup**
 
 1. **Local Testing with Production API:**
+
    ```bash
    # Update .env temporarily
    VITE_AI_AGENT_API_URL=https://your-production-ai-agent-url
@@ -92,12 +112,13 @@ https://daily-ai-agent-[hash].vercel.app
 ## 🚨 **Common Issues**
 
 ### **CORS Errors**
+
 If you see CORS errors, ensure your AI Agent API includes the UI domain in allowed origins:
 
 ```python
 # In your AI Agent API (daily_ai_agent/models/config.py)
 allowed_origins: List[str] = [
-    "http://localhost:3000", 
+    "http://localhost:3000",
     "http://localhost:5173",
     "https://daily-agent-ui.vercel.app",  # Add your Vercel domain
     "https://your-custom-domain.com"      # Add any custom domains
@@ -105,11 +126,13 @@ allowed_origins: List[str] = [
 ```
 
 ### **Environment Variables Not Loading**
+
 - Variables must be prefixed with `VITE_` for client-side access
 - Restart dev server after changing `.env` files
 - Check browser console for debug messages
 
 ### **API Connection Issues**
+
 - Verify AI Agent API is running and accessible
 - Test API endpoints directly: `curl https://your-api-url/health`
 - Check network tab in browser DevTools
@@ -117,7 +140,7 @@ allowed_origins: List[str] = [
 ## 📦 **Deployment Checklist**
 
 - [ ] AI Agent API deployed and accessible
-- [ ] MCP Server deployed and accessible  
+- [ ] MCP Server deployed and accessible
 - [ ] Environment variables set in Vercel
 - [ ] CORS origins updated in AI Agent API
 - [ ] UI builds successfully (`npm run build`)

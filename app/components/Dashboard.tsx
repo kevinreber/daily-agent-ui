@@ -1,4 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import {
+  apiClient,
+  type WeatherData,
+  type FinancialData,
+  type CalendarData,
+  type TodoData,
+} from "../lib/api";
 
 interface DashboardProps {
   userName?: string;
@@ -6,26 +14,145 @@ interface DashboardProps {
 
 export default function Dashboard({ userName = "Kevin" }: DashboardProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [financial, setFinancial] = useState<FinancialData | null>(null);
+  const [calendar, setCalendar] = useState<CalendarData | null>(null);
+  const [todos, setTodos] = useState<TodoData | null>(null);
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatHistory, setChatHistory] = useState<
+    Array<{ type: "user" | "ai"; message: string; timestamp: string }>
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [collapsedWidgets, setCollapsedWidgets] = useState<
+    Record<string, boolean>
+  >(() => {
+    // On mobile, collapse some widgets by default for better UX
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    return {
+      weather: false,
+      financial: isMobile,
+      calendar: isMobile,
+      todos: isMobile,
+    };
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  const toggleWidget = (widgetName: string) => {
+    setCollapsedWidgets((prev) => ({
+      ...prev,
+      [widgetName]: !prev[widgetName],
+    }));
+  };
+
+  // Fetch all data on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch all data in parallel
+        const [weatherData, financialData, calendarData, todoData] =
+          await Promise.all([
+            apiClient.getWeather(),
+            apiClient.getFinancialData(),
+            apiClient.getCalendar(),
+            apiClient.getTodos(),
+          ]);
+
+        setWeather(weatherData);
+        setFinancial(financialData);
+        setCalendar(calendarData);
+        setTodos(todoData);
+
+        // Add initial AI greeting
+        setChatHistory([
+          {
+            type: "ai",
+            message:
+              "Good morning! I've gathered your daily briefing. Would you like me to explain anything in detail or help you plan your day?",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleSendMessage = async () => {
+    if (!chatMessage.trim() || isLoadingChat) return;
+
+    const userMessage = chatMessage.trim();
+    setChatMessage("");
+    setIsLoadingChat(true);
+
+    // Add user message to history
+    setChatHistory((prev) => [
+      ...prev,
+      {
+        type: "user",
+        message: userMessage,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+
+    try {
+      const response = await apiClient.sendChatMessage(userMessage);
+
+      // Add AI response to history
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          type: "ai",
+          message: response.response,
+          timestamp: response.timestamp,
+        },
+      ]);
+    } catch (error) {
+      // Add error message to history
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          type: "ai",
+          message:
+            "Sorry, I'm having trouble connecting to the AI service right now. Please try again later.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setIsLoadingChat(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      second: '2-digit'
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -38,24 +165,59 @@ export default function Dashboard({ userName = "Kevin" }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
-      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      {/* Header - Sticky and Mobile Optimized */}
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-4">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                🌅 Morning Routine
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
+                <span className="hidden sm:inline">Daily Agent</span>
+                <span className="sm:hidden">Daily Agent</span>
               </h1>
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 hidden sm:block">
                 {getGreeting()}, {userName}! Here's your daily overview.
               </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300 sm:hidden">
+                {getGreeting()}, {userName}!
+              </p>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-mono font-bold text-gray-900 dark:text-white">
-                {formatTime(currentTime)}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {formatDate(currentTime)}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <button
+                onClick={() => {
+                  const allCollapsed = Object.values(collapsedWidgets).every(
+                    (collapsed) => collapsed
+                  );
+                  setCollapsedWidgets({
+                    weather: !allCollapsed,
+                    financial: !allCollapsed,
+                    calendar: !allCollapsed,
+                    todos: !allCollapsed,
+                  });
+                }}
+                className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-full transition-colors"
+              >
+                <span className="hidden sm:inline">
+                  {Object.values(collapsedWidgets).every(
+                    (collapsed) => collapsed
+                  )
+                    ? "Expand All"
+                    : "Collapse All"}
+                </span>
+                <span className="sm:hidden">
+                  {Object.values(collapsedWidgets).every(
+                    (collapsed) => collapsed
+                  )
+                    ? "↕️"
+                    : "⬇️"}
+                </span>
+              </button>
+              <div className="text-right">
+                <div className="text-lg sm:text-2xl font-mono font-bold text-gray-900 dark:text-white">
+                  {formatTime(currentTime)}
+                </div>
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                  {formatDate(currentTime)}
+                </div>
               </div>
             </div>
           </div>
@@ -63,145 +225,506 @@ export default function Dashboard({ userName = "Kevin" }: DashboardProps) {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Dashboard Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-          
           {/* Weather Widget */}
-          <div className="col-span-1 md:col-span-2 lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
+          <div
+            className={`col-span-1 md:col-span-2 lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition-all ${collapsedWidgets.weather ? "p-3" : "p-4 sm:p-6"}`}
+          >
+            <div
+              className={`flex items-center justify-between ${collapsedWidgets.weather ? "mb-0" : "mb-4"}`}
+            >
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                 🌤️ Weather
+                {collapsedWidgets.weather && weather && (
+                  <span className="ml-2 text-sm font-normal text-gray-600 dark:text-gray-400">
+                    {weather.data.current_temp}°F, {weather.data.condition}
+                  </span>
+                )}
               </h2>
-              <span className="text-xs text-gray-500 dark:text-gray-400">San Francisco</span>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">72°F</span>
-                <span className="text-sm text-gray-600 dark:text-gray-300">Partly Cloudy</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {weather?.data?.location || "Loading..."}
+                </span>
+                <button
+                  onClick={() => toggleWidget("weather")}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  aria-label={
+                    collapsedWidgets.weather
+                      ? "Expand weather"
+                      : "Collapse weather"
+                  }
+                >
+                  <svg
+                    className={`w-4 h-4 text-gray-500 transition-transform ${collapsedWidgets.weather ? "" : "rotate-180"}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                High: 78°F • Low: 65°F • Precipitation: 10%
-              </div>
             </div>
+            {!collapsedWidgets.weather && (
+              <>
+                {loading ? (
+                  <div className="space-y-3 animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+                    </div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                  </div>
+                ) : weather ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                        {weather.data.current_temp}°F
+                      </span>
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
+                        {weather.data.condition}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      High: {weather.data.temp_hi}°F • Low:{" "}
+                      {weather.data.temp_lo}°F • Precipitation:{" "}
+                      {weather.data.precip_chance}%
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-red-500">
+                    Failed to load weather data
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Financial Widget */}
-          <div className="col-span-1 md:col-span-2 lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
+          <div
+            className={`col-span-1 md:col-span-2 lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition-all ${collapsedWidgets.financial ? "p-3" : "p-4 sm:p-6"}`}
+          >
+            <div
+              className={`flex items-center justify-between ${collapsedWidgets.financial ? "mb-0" : "mb-4"}`}
+            >
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                 💰 Markets
+                {collapsedWidgets.financial && financial?.data?.data && (
+                  <span className="ml-2 text-sm font-normal text-gray-600 dark:text-gray-400">
+                    {financial.data.data.length} stocks
+                  </span>
+                )}
               </h2>
-              <span className="text-xs text-gray-500 dark:text-gray-400">Live</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {financial?.data?.market_status || "Loading..."}
+                </span>
+                <button
+                  onClick={() => toggleWidget("financial")}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  aria-label={
+                    collapsedWidgets.financial
+                      ? "Expand markets"
+                      : "Collapse markets"
+                  }
+                >
+                  <svg
+                    className={`w-4 h-4 text-gray-500 transition-transform ${collapsedWidgets.financial ? "" : "rotate-180"}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">MSFT</span>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">$523.73</span>
-                  <span className="text-xs text-green-600 ml-2">+1.2%</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">BTC</span>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">$96,847</span>
-                  <span className="text-xs text-red-600 ml-2">-2.3%</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">NVDA</span>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">$875.12</span>
-                  <span className="text-xs text-green-600 ml-2">+0.8%</span>
-                </div>
-              </div>
-            </div>
+            {!collapsedWidgets.financial && (
+              <>
+                {loading ? (
+                  <div className="space-y-2 animate-pulse">
+                    {[1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="flex justify-between items-center"
+                      >
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
+                        <div className="text-right space-y-1">
+                          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-10"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : financial?.data?.data ? (
+                  <div className="space-y-2">
+                    {financial.data.data.slice(0, 3).map((item) => (
+                      <div
+                        key={item.symbol}
+                        className="flex justify-between items-center"
+                      >
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {item.symbol}
+                        </span>
+                        <div className="text-right">
+                          <span className="text-sm font-bold text-gray-900 dark:text-white">
+                            $
+                            {item.price.toLocaleString(undefined, {
+                              minimumFractionDigits:
+                                item.data_type === "crypto" && item.price > 1000
+                                  ? 0
+                                  : 2,
+                              maximumFractionDigits:
+                                item.data_type === "crypto" && item.price > 1000
+                                  ? 0
+                                  : 2,
+                            })}
+                          </span>
+                          <span
+                            className={`text-xs ml-2 ${
+                              item.change_percent >= 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {item.change_percent >= 0 ? "+" : ""}
+                            {item.change_percent.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-red-500">
+                    Failed to load financial data
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Calendar Widget */}
-          <div className="col-span-1 md:col-span-1 lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
+          <div
+            className={`col-span-1 md:col-span-1 lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition-all ${collapsedWidgets.calendar ? "p-3" : "p-4 sm:p-6"}`}
+          >
+            <div
+              className={`flex items-center justify-between ${collapsedWidgets.calendar ? "mb-0" : "mb-4"}`}
+            >
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                 📅 Today
+                {collapsedWidgets.calendar &&
+                  calendar?.data?.total_events !== undefined && (
+                    <span className="ml-2 text-sm font-normal text-gray-600 dark:text-gray-400">
+                      {calendar.data.total_events} events
+                    </span>
+                  )}
               </h2>
-              <span className="text-xs text-gray-500 dark:text-gray-400">3 events</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {calendar?.data?.total_events
+                    ? `${calendar.data.total_events} events`
+                    : "Loading..."}
+                </span>
+                <button
+                  onClick={() => toggleWidget("calendar")}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  aria-label={
+                    collapsedWidgets.calendar
+                      ? "Expand calendar"
+                      : "Collapse calendar"
+                  }
+                >
+                  <svg
+                    className={`w-4 h-4 text-gray-500 transition-transform ${collapsedWidgets.calendar ? "" : "rotate-180"}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div className="space-y-3">
-              <div className="border-l-2 border-blue-500 pl-3">
-                <div className="text-sm font-medium text-gray-900 dark:text-white">Team Standup</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">9:00 AM</div>
-              </div>
-              <div className="border-l-2 border-green-500 pl-3">
-                <div className="text-sm font-medium text-gray-900 dark:text-white">Code Review</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">2:00 PM</div>
-              </div>
-              <div className="border-l-2 border-orange-500 pl-3">
-                <div className="text-sm font-medium text-gray-900 dark:text-white">Gym Session</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">6:00 PM</div>
-              </div>
-            </div>
+            {!collapsedWidgets.calendar && (
+              <>
+                {loading ? (
+                  <div className="space-y-3 animate-pulse">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="border-l-2 border-gray-300 pl-3">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-1"></div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : calendar?.data?.events ? (
+                  <div className="space-y-3">
+                    {calendar.data.events.map((event, index) => {
+                      const colorMap: Record<string, string> = {
+                        blue: "border-blue-500",
+                        green: "border-green-500",
+                        orange: "border-orange-500",
+                        red: "border-red-500",
+                        purple: "border-purple-500",
+                      };
+                      return (
+                        <div
+                          key={index}
+                          className={`border-l-2 ${colorMap[event.color] || "border-gray-500"} pl-3`}
+                        >
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {event.title}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {event.time}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-red-500">
+                    Failed to load calendar data
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Todo Widget */}
-          <div className="col-span-1 md:col-span-1 lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
+          <div
+            className={`col-span-1 md:col-span-1 lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition-all ${collapsedWidgets.todos ? "p-3" : "p-4 sm:p-6"}`}
+          >
+            <div
+              className={`flex items-center justify-between ${collapsedWidgets.todos ? "mb-0" : "mb-4"}`}
+            >
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                 ✅ Tasks
+                {collapsedWidgets.todos &&
+                  todos?.data?.total_pending !== undefined && (
+                    <span className="ml-2 text-sm font-normal text-gray-600 dark:text-gray-400">
+                      {todos.data.total_pending} pending
+                    </span>
+                  )}
               </h2>
-              <span className="text-xs text-gray-500 dark:text-gray-400">5 pending</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {todos?.data?.total_pending
+                    ? `${todos.data.total_pending} pending`
+                    : "Loading..."}
+                </span>
+                <button
+                  onClick={() => toggleWidget("todos")}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  aria-label={
+                    collapsedWidgets.todos ? "Expand tasks" : "Collapse tasks"
+                  }
+                >
+                  <svg
+                    className={`w-4 h-4 text-gray-500 transition-transform ${collapsedWidgets.todos ? "" : "rotate-180"}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" className="rounded border-gray-300" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Review quarterly reports</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" className="rounded border-gray-300" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Update project timeline</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" className="rounded border-gray-300" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Call insurance company</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" className="rounded border-gray-300" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Book dentist appointment</span>
-              </div>
-            </div>
+            {!collapsedWidgets.todos && (
+              <>
+                {loading ? (
+                  <div className="space-y-2 animate-pulse">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="flex items-center space-x-2">
+                        <div className="h-4 w-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded flex-1"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : todos?.data?.items ? (
+                  <div className="space-y-2">
+                    {todos.data.items.slice(0, 4).map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300"
+                          checked={item.completed}
+                          onChange={() => {
+                            // In a real app, this would update the todo via API
+                            console.log("Toggle todo:", item.id);
+                          }}
+                        />
+                        <span
+                          className={`text-sm ${item.completed ? "line-through text-gray-400" : "text-gray-700 dark:text-gray-300"}`}
+                        >
+                          {item.text}
+                        </span>
+                        {item.priority === "high" && (
+                          <span className="text-xs text-red-500 font-medium">
+                            !
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-red-500">
+                    Failed to load todo data
+                  </div>
+                )}
+              </>
+            )}
           </div>
-
         </div>
 
         {/* AI Chat Interface */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
               🤖 AI Assistant
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-              Ask me anything about your morning routine, weather, schedule, or markets.
+              Ask me anything about your morning routine, weather, schedule, or
+              markets.
             </p>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4 max-h-64 overflow-y-auto">
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                💬 <strong>AI:</strong> Good morning! I've gathered your daily briefing. Would you like me to explain anything in detail or help you plan your day?
-              </div>
+              {chatHistory.length === 0 ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                  Loading AI assistant...
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {chatHistory.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`${
+                        message.type === "ai"
+                          ? "bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500"
+                          : "bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700"
+                      } rounded-lg p-3 shadow-sm`}
+                    >
+                      <div
+                        className={`text-xs font-medium mb-1 ${
+                          message.type === "ai"
+                            ? "text-gray-500 dark:text-gray-400"
+                            : "text-blue-600 dark:text-blue-400"
+                        }`}
+                      >
+                        {message.type === "ai" ? "🤖 AI Assistant" : "👤 You"}
+                      </div>
+                      <div
+                        className={`text-sm ${
+                          message.type === "ai"
+                            ? "text-gray-800 dark:text-gray-200"
+                            : "text-blue-800 dark:text-blue-200"
+                        }`}
+                      >
+                        {message.type === "ai" ? (
+                          <div className="prose prose-sm max-w-none dark:prose-invert">
+                            <ReactMarkdown
+                              components={{
+                                p: ({ children }) => (
+                                  <p className="mb-2 last:mb-0 text-gray-700 dark:text-gray-300">
+                                    {children}
+                                  </p>
+                                ),
+                                strong: ({ children }) => (
+                                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                    {children}
+                                  </span>
+                                ),
+                                ul: ({ children }) => (
+                                  <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
+                                    {children}
+                                  </ul>
+                                ),
+                                li: ({ children }) => <li>{children}</li>,
+                                h1: ({ children }) => (
+                                  <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
+                                    {children}
+                                  </h1>
+                                ),
+                                h2: ({ children }) => (
+                                  <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                                    {children}
+                                  </h2>
+                                ),
+                                h3: ({ children }) => (
+                                  <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                                    {children}
+                                  </h3>
+                                ),
+                              }}
+                            >
+                              {message.message}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          message.message
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {isLoadingChat && (
+                    <div className="bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 rounded-lg p-3 shadow-sm">
+                      <div className="text-xs font-medium mb-1 text-gray-500 dark:text-gray-400">
+                        🤖 AI Assistant
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">
+                        <span className="animate-pulse">Thinking...</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex space-x-2">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Type your message..."
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={isLoadingChat}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50"
               />
-              <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                Send
+              <button
+                onClick={handleSendMessage}
+                disabled={isLoadingChat || !chatMessage.trim()}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoadingChat ? "..." : "Send"}
               </button>
             </div>
           </div>
         </div>
-
       </main>
     </div>
   );

@@ -3,13 +3,27 @@ export class AIAgentAPI {
   private baseURL: string;
 
   constructor() {
-    // Use environment variable or fallback to local development
-    this.baseURL =
-      typeof window !== "undefined"
-        ? window.location.origin.includes("localhost")
-          ? "http://localhost:8001" // Local AI agent API
-          : "https://your-ai-agent-on-vercel.vercel.app" // Production AI agent API
-        : "http://localhost:8001";
+    // Use environment variable with smart fallbacks
+    const envApiUrl = import.meta.env?.VITE_AI_AGENT_API_URL;
+    const isDevelopment = import.meta.env?.VITE_ENVIRONMENT === 'development';
+    
+    if (envApiUrl) {
+      // Use environment variable if set
+      this.baseURL = envApiUrl;
+    } else {
+      // Fallback logic for when env vars aren't set
+      this.baseURL =
+        typeof window !== "undefined"
+          ? window.location.origin.includes("localhost")
+            ? "http://localhost:8001" // Local development fallback
+            : "https://your-deployed-ai-agent-url.railway.app" // Production fallback (UPDATE THIS!)
+          : "http://localhost:8001";
+    }
+
+    if (import.meta.env?.VITE_DEBUG === 'true') {
+      console.log(`🔗 AI Agent API URL: ${this.baseURL}`);
+      console.log(`🌍 Environment: ${import.meta.env?.VITE_ENVIRONMENT}`);
+    }
   }
 
   private async fetchAPI(

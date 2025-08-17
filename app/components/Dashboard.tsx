@@ -10,19 +10,45 @@ import {
 
 interface DashboardProps {
   userName?: string;
+  // Server-side loaded data (no CORS issues!)
+  initialWeather?: WeatherData | null;
+  initialFinancial?: FinancialData | null;
+  initialCalendar?: CalendarData | null;
+  initialTodos?: TodoData | null;
+  serverErrors?: {
+    weather?: string | null;
+    financial?: string | null;
+    calendar?: string | null;
+    todos?: string | null;
+  };
 }
 
-export default function Dashboard({ userName = "Kevin" }: DashboardProps) {
+export default function Dashboard({
+  userName = "Kevin",
+  initialWeather,
+  initialFinancial,
+  initialCalendar,
+  initialTodos,
+  serverErrors,
+}: DashboardProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [financial, setFinancial] = useState<FinancialData | null>(null);
-  const [calendar, setCalendar] = useState<CalendarData | null>(null);
-  const [todos, setTodos] = useState<TodoData | null>(null);
+  const [weather, setWeather] = useState<WeatherData | null>(
+    initialWeather || null
+  );
+  const [financial, setFinancial] = useState<FinancialData | null>(
+    initialFinancial || null
+  );
+  const [calendar, setCalendar] = useState<CalendarData | null>(
+    initialCalendar || null
+  );
+  const [todos, setTodos] = useState<TodoData | null>(initialTodos || null);
   const [chatMessage, setChatMessage] = useState("");
   const [chatHistory, setChatHistory] = useState<
     Array<{ type: "user" | "ai"; message: string; timestamp: string }>
   >([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(
+    !initialWeather && !initialFinancial && !initialCalendar && !initialTodos
+  );
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [collapsedWidgets, setCollapsedWidgets] = useState<
     Record<string, boolean>
@@ -59,24 +85,57 @@ export default function Dashboard({ userName = "Kevin" }: DashboardProps) {
     }));
   };
 
-  // Fetch all data on component mount
+  // Fetch missing data on component mount (server-side data takes priority)
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Fetch all data in parallel
-        const [weatherData, financialData, calendarData, todoData] =
-          await Promise.all([
-            apiClient.getWeather(),
-            apiClient.getFinancialData(),
-            apiClient.getCalendar(),
-            apiClient.getTodos(),
-          ]);
+    const fetchMissingData = async () => {
+      // Only fetch data that wasn't loaded server-side
+      const needsClientFetch =
+        !initialWeather ||
+        !initialFinancial ||
+        !initialCalendar ||
+        !initialTodos;
 
-        setWeather(weatherData);
-        setFinancial(financialData);
-        setCalendar(calendarData);
-        setTodos(todoData);
+      if (!needsClientFetch) {
+        console.log("✅ Using server-side loaded data, skipping client fetch");
+        setLoading(false);
+        // Add initial AI greeting
+        setChatHistory([
+          {
+            type: "ai",
+            message:
+              "Good morning! I've gathered your daily briefing. Would you like me to explain anything in detail or help you plan your day?",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+        return;
+      }
+
+      console.log(
+        "🔄 Some data missing from server-side load, fetching client-side..."
+      );
+      setLoading(true);
+
+      try {
+        // Fetch only missing data individually to avoid type issues
+        if (!initialWeather) {
+          const weatherData = await apiClient.getWeather();
+          setWeather(weatherData);
+        }
+
+        if (!initialFinancial) {
+          const financialData = await apiClient.getFinancialData();
+          setFinancial(financialData);
+        }
+
+        if (!initialCalendar) {
+          const calendarData = await apiClient.getCalendar();
+          setCalendar(calendarData);
+        }
+
+        if (!initialTodos) {
+          const todoData = await apiClient.getTodos();
+          setTodos(todoData);
+        }
 
         // Add initial AI greeting
         setChatHistory([
@@ -88,14 +147,24 @@ export default function Dashboard({ userName = "Kevin" }: DashboardProps) {
           },
         ]);
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+        console.error("Error fetching missing dashboard data:", error);
+        // Display server errors if available
+        if (serverErrors) {
+          console.log("Server-side fetch errors:", serverErrors);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchMissingData();
+  }, [
+    initialWeather,
+    initialFinancial,
+    initialCalendar,
+    initialTodos,
+    serverErrors,
+  ]);
 
   const handleSendMessage = async () => {
     if (!chatMessage.trim() || isLoadingChat) return;

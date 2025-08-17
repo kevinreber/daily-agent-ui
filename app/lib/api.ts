@@ -308,3 +308,91 @@ export interface BriefingData {
 
 // Create a singleton instance
 export const apiClient = new AIAgentAPI();
+
+// Server-side API client (uses Node.js environment variables)
+export class ServerAIAgentAPI {
+  private baseURL: string;
+
+  constructor() {
+    // Use Node.js environment variables for server-side
+    this.baseURL = process.env.VITE_AI_AGENT_API_URL || "http://localhost:8001";
+
+    if (process.env.VITE_DEBUG === "true") {
+      console.log(`🔗 Server AI Agent API URL: ${this.baseURL}`);
+    }
+  }
+
+  private async fetchAPI(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<any> {
+    const url = `${this.baseURL}${endpoint}`;
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  // Weather data
+  async getWeather(location: string = "San Francisco"): Promise<WeatherData> {
+    try {
+      const params = new URLSearchParams({ location, when: "today" });
+      return await this.fetchAPI(`/tools/weather?${params}`);
+    } catch (error) {
+      console.warn("Failed to fetch weather data:", error);
+      throw error;
+    }
+  }
+
+  // Financial data
+  async getFinancialData(
+    symbols: string[] = ["MSFT", "BTC", "ETH", "NVDA"]
+  ): Promise<FinancialData> {
+    try {
+      return await this.fetchAPI("/tools/financial", {
+        method: "POST",
+        body: JSON.stringify({
+          symbols,
+          data_type: "mixed",
+        }),
+      });
+    } catch (error) {
+      console.warn("Failed to fetch financial data:", error);
+      throw error;
+    }
+  }
+
+  // Calendar data
+  async getCalendar(date?: string): Promise<CalendarData> {
+    try {
+      const params = new URLSearchParams();
+      if (date) params.append("date", date);
+      return await this.fetchAPI(`/tools/calendar?${params}`);
+    } catch (error) {
+      console.warn("Failed to fetch calendar data:", error);
+      throw error;
+    }
+  }
+
+  // Todo data
+  async getTodos(): Promise<TodoData> {
+    try {
+      return await this.fetchAPI("/tools/todos");
+    } catch (error) {
+      console.warn("Failed to fetch todo data:", error);
+      throw error;
+    }
+  }
+}
+
+// Server-side instance
+export const serverApiClient = new ServerAIAgentAPI();

@@ -414,17 +414,24 @@ export default function Dashboard({
       <header className="sticky top-0 z-50 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-4">
           <div className="flex justify-between items-center">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
-                <span className="hidden sm:inline">Daily Agent</span>
-                <span className="sm:hidden">Daily Agent</span>
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 hidden sm:block">
-                {getGreeting()}, {userName}! Here's your daily overview.
-              </p>
-              <p className="text-xs text-gray-600 dark:text-gray-300 sm:hidden">
-                {getGreeting()}, {userName}!
-              </p>
+            <div className="min-w-0 flex-1 flex items-center space-x-2 sm:space-x-3">
+              <img
+                src="/logo_100x100_fullheight.png"
+                alt="Daily Agent Logo"
+                className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
+                  <span className="hidden sm:inline">Daily Agent</span>
+                  <span className="sm:hidden">Daily Agent</span>
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 hidden sm:block">
+                  {getGreeting()}, {userName}! Here's your daily overview.
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-300 sm:hidden">
+                  {getGreeting()}, {userName}!
+                </p>
+              </div>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
               <button

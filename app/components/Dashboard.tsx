@@ -50,6 +50,63 @@ export default function Dashboard({
     !initialWeather && !initialFinancial && !initialCalendar && !initialTodos
   );
   const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [showCommandSuggestions, setShowCommandSuggestions] = useState(false);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+
+  // Slash command registry
+  const slashCommands = [
+    {
+      command: "/summary",
+      aliases: ["/briefing"],
+      description: "Get your daily morning briefing",
+      icon: "📊",
+      action:
+        "Give me a comprehensive morning briefing with weather, finance, calendar, and tasks",
+    },
+    {
+      command: "/weather",
+      aliases: ["/forecast"],
+      description: "Get current weather information",
+      icon: "🌤️",
+      action: "What's the current weather and forecast?",
+    },
+    {
+      command: "/finance",
+      aliases: ["/stocks", "/market"],
+      description: "Check your financial portfolio",
+      icon: "💰",
+      action: "How are my stocks and crypto investments doing?",
+    },
+    {
+      command: "/calendar",
+      aliases: ["/schedule", "/events"],
+      description: "View today's calendar events",
+      icon: "📅",
+      action: "What events do I have scheduled for today?",
+    },
+    {
+      command: "/tasks",
+      aliases: ["/todos", "/todo"],
+      description: "Show your task list",
+      icon: "✅",
+      action: "What tasks do I have to complete today?",
+    },
+    {
+      command: "/commute",
+      aliases: ["/traffic"],
+      description: "Check traffic and commute info",
+      icon: "🚗",
+      action: "How does traffic to work look right now?",
+    },
+    {
+      command: "/help",
+      aliases: ["/commands"],
+      description: "Show available slash commands",
+      icon: "❓",
+      action: "help", // Special case - handled locally
+    },
+  ];
+
   const [collapsedWidgets, setCollapsedWidgets] = useState<
     Record<string, boolean>
   >(() => {
@@ -77,6 +134,56 @@ export default function Dashboard({
       scrollElement.scrollTop = scrollElement.scrollHeight;
     }
   }, [chatHistory]);
+
+  // Process slash commands
+  const processSlashCommand = (input: string): string | null => {
+    const trimmedInput = input.trim();
+    if (!trimmedInput.startsWith("/")) return null;
+
+    const commandPart = trimmedInput.split(" ")[0].toLowerCase();
+
+    // Find matching command
+    const matchedCommand = slashCommands.find(
+      (cmd) => cmd.command === commandPart || cmd.aliases.includes(commandPart)
+    );
+
+    if (!matchedCommand) return null;
+
+    // Handle special commands locally
+    if (matchedCommand.action === "help") {
+      const helpMessage = `**Available Slash Commands:**\n\n${slashCommands
+        .filter((cmd) => cmd.action !== "help")
+        .map(
+          (cmd) =>
+            `${cmd.icon} **${cmd.command}** ${cmd.aliases.length > 0 ? `(${cmd.aliases.join(", ")})` : ""}\n${cmd.description}`
+        )
+        .join("\n\n")}`;
+
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          type: "ai",
+          message: helpMessage,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+      return "help_processed";
+    }
+
+    return matchedCommand.action;
+  };
+
+  // Get filtered command suggestions
+  const getCommandSuggestions = (input: string) => {
+    if (!input.startsWith("/")) return [];
+
+    const searchTerm = input.toLowerCase();
+    return slashCommands.filter(
+      (cmd) =>
+        cmd.command.startsWith(searchTerm) ||
+        cmd.aliases.some((alias) => alias.startsWith(searchTerm))
+    );
+  };
 
   // Send chat message to proxy API (no CORS issues!)
   const sendChatMessage = async (message: string) => {
@@ -217,16 +324,27 @@ export default function Dashboard({
   const handleSendMessage = async () => {
     if (!chatMessage.trim() || isLoadingChat) return;
 
-    const userMessage = chatMessage.trim();
+    const userInput = chatMessage.trim();
     setChatMessage("");
+    setShowCommandSuggestions(false);
+
+    // Check if it's a slash command
+    const commandResult = processSlashCommand(userInput);
+
+    if (commandResult === "help_processed") {
+      // Help command was processed locally, no need to send to AI
+      return;
+    }
+
+    const userMessage = commandResult || userInput;
     setIsLoadingChat(true);
 
-    // Add user message to history immediately
+    // Add user message to history immediately (show original input, not translated command)
     setChatHistory((prev) => [
       ...prev,
       {
         type: "user",
-        message: userMessage,
+        message: userInput,
         timestamp: new Date().toISOString(),
       },
     ]);
@@ -238,7 +356,45 @@ export default function Dashboard({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showCommandSuggestions && chatMessage.startsWith("/")) {
+      const suggestions = getCommandSuggestions(chatMessage);
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedCommandIndex((prev) =>
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        );
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedCommandIndex((prev) =>
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        );
+        return;
+      }
+
+      if (e.key === "Tab" || (e.key === "Enter" && suggestions.length > 0)) {
+        e.preventDefault();
+        const selectedCommand = suggestions[selectedCommandIndex];
+        if (selectedCommand) {
+          setChatMessage(selectedCommand.command + " ");
+          setShowCommandSuggestions(false);
+          setSelectedCommandIndex(0);
+        }
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowCommandSuggestions(false);
+        setSelectedCommandIndex(0);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -828,15 +984,12 @@ export default function Dashboard({
                       {/* Quick Prompt Buttons */}
                       <div className="grid grid-cols-1 gap-2">
                         {[
+                          { text: "/summary", icon: "📊", isCommand: true },
+                          { text: "/weather", icon: "🌤️", isCommand: true },
+                          { text: "/finance", icon: "💰", isCommand: true },
                           { text: "How does my day look?", icon: "📅" },
-                          { text: "How are my stocks doing?", icon: "💰" },
-                          { text: "What's the weather like?", icon: "🌤️" },
                           { text: "What tasks do I have today?", icon: "✅" },
-                          { text: "Give me a morning briefing", icon: "📊" },
-                          {
-                            text: "How does traffic to work look?",
-                            icon: "🚗",
-                          },
+                          { text: "/help", icon: "❓", isCommand: true },
                         ].map((prompt, index) => (
                           <button
                             key={index}
@@ -863,7 +1016,11 @@ export default function Dashboard({
                               }
                             }}
                             disabled={isLoadingChat}
-                            className="flex items-center space-x-2 p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`flex items-center space-x-2 p-3 text-sm text-left rounded-lg border transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed ${
+                              prompt.isCommand
+                                ? "bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800"
+                                : "bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600"
+                            }`}
                           >
                             <span className="text-base">
                               {isLoadingChat ? (
@@ -872,15 +1029,28 @@ export default function Dashboard({
                                 prompt.icon
                               )}
                             </span>
-                            <span className="text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">
-                              {prompt.text}
-                            </span>
+                            <div className="flex items-center justify-between flex-1">
+                              <span
+                                className={`${
+                                  prompt.isCommand
+                                    ? "text-blue-700 dark:text-blue-300 group-hover:text-blue-900 dark:group-hover:text-blue-100"
+                                    : "text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white"
+                                }`}
+                              >
+                                {prompt.text}
+                              </span>
+                              {prompt.isCommand && (
+                                <span className="text-xs text-blue-500 dark:text-blue-400 font-mono">
+                                  CMD
+                                </span>
+                              )}
+                            </div>
                           </button>
                         ))}
                       </div>
 
                       <div className="text-xs text-gray-400 dark:text-gray-500 text-center">
-                        Or type your own message below
+                        Try slash commands above, or type your own message below
                       </div>
                     </div>
                   )}
@@ -888,14 +1058,84 @@ export default function Dashboard({
               </div>
 
               {/* Input Area - Always visible */}
-              <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+              <div className="relative border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+                {/* Command Suggestions - Floating above input */}
+                {showCommandSuggestions && chatMessage.startsWith("/") && (
+                  <div className="absolute bottom-full left-0 right-0 mb-1 z-10">
+                    <div className="mx-3 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200/60 dark:border-gray-700/60 rounded-lg shadow-lg">
+                      <div className="px-3 py-1 border-b border-gray-200/60 dark:border-gray-700/60">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                          <span>Commands</span>
+                          <span>↑↓ navigate • ↵ select • esc close</span>
+                        </div>
+                      </div>
+                      <div className="p-2 space-y-1 max-h-48 overflow-y-auto">
+                        {getCommandSuggestions(chatMessage).map(
+                          (cmd, index) => (
+                            <button
+                              key={index}
+                              onClick={() => {
+                                setChatMessage(cmd.command + " ");
+                                setShowCommandSuggestions(false);
+                                setSelectedCommandIndex(0);
+                              }}
+                              className={`w-full flex items-center space-x-2 p-2 text-left rounded-md transition-colors text-sm group ${
+                                index === selectedCommandIndex
+                                  ? "bg-blue-100/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100"
+                                  : "hover:bg-gray-100/80 dark:hover:bg-gray-700/80"
+                              }`}
+                            >
+                              <span className="text-sm">{cmd.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-gray-900 dark:text-white text-sm">
+                                  {cmd.command}
+                                  {cmd.aliases.length > 0 && (
+                                    <span className="text-gray-500 dark:text-gray-400 font-normal text-xs ml-1">
+                                      ({cmd.aliases.join(", ")})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-gray-500 dark:text-gray-400 text-xs truncate">
+                                  {cmd.description}
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                ↵
+                              </div>
+                            </button>
+                          )
+                        )}
+                        {getCommandSuggestions(chatMessage).length === 0 && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-3">
+                            No commands found. Try{" "}
+                            <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-xs">
+                              /help
+                            </code>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex space-x-2">
                   <input
                     type="text"
-                    placeholder="Type your message..."
+                    placeholder="Type your message or / for commands..."
                     value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setChatMessage(value);
+
+                      // Show command suggestions when typing slash commands
+                      if (value.startsWith("/") && value.length > 0) {
+                        setShowCommandSuggestions(true);
+                        setSelectedCommandIndex(0); // Reset selection
+                      } else {
+                        setShowCommandSuggestions(false);
+                        setSelectedCommandIndex(0);
+                      }
+                    }}
+                    onKeyDown={handleKeyDown}
                     disabled={isLoadingChat}
                     className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50 transition-colors text-sm"
                     autoComplete="off"

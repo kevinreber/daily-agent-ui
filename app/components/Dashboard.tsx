@@ -764,59 +764,125 @@ export default function Dashboard({
                   ref={chatContainerRef}
                   className="flex-1 overflow-y-auto p-3 space-y-2"
                 >
-                  {chatHistory.length === 0 ? (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
-                      Start a conversation with your AI assistant...
+                  {/* Show existing messages first */}
+                  {chatHistory.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`${
+                        message.type === "user"
+                          ? "ml-6 bg-blue-500 text-white"
+                          : "mr-6 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      } rounded-lg p-3 text-sm`}
+                    >
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => (
+                            <p className="mb-2 last:mb-0">{children}</p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc pl-4 mb-2">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal pl-4 mb-2">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="mb-1">{children}</li>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-semibold">
+                              {children}
+                            </strong>
+                          ),
+                          code: ({ children }) => (
+                            <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded text-xs">
+                              {children}
+                            </code>
+                          ),
+                        }}
+                      >
+                        {message.message}
+                      </ReactMarkdown>
                     </div>
-                  ) : (
-                    <>
-                      {chatHistory.map((message, index) => (
-                        <div
-                          key={index}
-                          className={`${
-                            message.type === "user"
-                              ? "ml-6 bg-blue-500 text-white"
-                              : "mr-6 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                          } rounded-lg p-3 text-sm`}
-                        >
-                          {message.type === "ai" ? (
-                            <div className="prose prose-sm max-w-none dark:prose-invert">
-                              <ReactMarkdown
-                                components={{
-                                  p: ({ children }) => (
-                                    <p className="mb-1 last:mb-0 text-gray-700 dark:text-gray-300">
-                                      {children}
-                                    </p>
-                                  ),
-                                  strong: ({ children }) => (
-                                    <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                      {children}
-                                    </span>
-                                  ),
-                                  ul: ({ children }) => (
-                                    <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
-                                      {children}
-                                    </ul>
-                                  ),
-                                  li: ({ children }) => <li>{children}</li>,
-                                }}
-                              >
-                                {message.message}
-                              </ReactMarkdown>
-                            </div>
-                          ) : (
-                            message.message
-                          )}
-                        </div>
-                      ))}
-                      {isLoadingChat && (
-                        <div className="mr-6 bg-gray-100 dark:bg-gray-700 rounded-lg p-3 text-sm">
-                          <span className="text-gray-600 dark:text-gray-300 animate-pulse">
-                            AI is thinking...
-                          </span>
+                  ))}
+
+                  {/* Loading indicator when AI is thinking */}
+                  {isLoadingChat && (
+                    <div className="mr-6 bg-gray-100 dark:bg-gray-700 rounded-lg p-3 text-sm">
+                      <span className="text-gray-600 dark:text-gray-300 animate-pulse">
+                        AI is thinking...
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Show prompts if there are 1 or fewer messages (just initial greeting or empty) */}
+                  {chatHistory.length <= 1 && (
+                    <div className="p-3 space-y-4">
+                      {chatHistory.length === 0 && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                          Start a conversation with your AI assistant...
                         </div>
                       )}
-                    </>
+
+                      {/* Quick Prompt Buttons */}
+                      <div className="grid grid-cols-1 gap-2">
+                        {[
+                          { text: "How does my day look?", icon: "📅" },
+                          { text: "How are my stocks doing?", icon: "💰" },
+                          { text: "What's the weather like?", icon: "🌤️" },
+                          { text: "What tasks do I have today?", icon: "✅" },
+                          { text: "Give me a morning briefing", icon: "📊" },
+                          {
+                            text: "How does traffic to work look?",
+                            icon: "🚗",
+                          },
+                        ].map((prompt, index) => (
+                          <button
+                            key={index}
+                            onClick={async () => {
+                              if (isLoadingChat) return;
+
+                              const userMessage = prompt.text;
+                              setIsLoadingChat(true);
+
+                              // Add user message to history immediately
+                              setChatHistory((prev) => [
+                                ...prev,
+                                {
+                                  type: "user",
+                                  message: userMessage,
+                                  timestamp: new Date().toISOString(),
+                                },
+                              ]);
+
+                              try {
+                                await sendChatMessage(userMessage);
+                              } finally {
+                                setIsLoadingChat(false);
+                              }
+                            }}
+                            disabled={isLoadingChat}
+                            className="flex items-center space-x-2 p-3 text-sm text-left bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <span className="text-base">
+                              {isLoadingChat ? (
+                                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                              ) : (
+                                prompt.icon
+                              )}
+                            </span>
+                            <span className="text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">
+                              {prompt.text}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                        Or type your own message below
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

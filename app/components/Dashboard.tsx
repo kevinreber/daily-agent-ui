@@ -709,6 +709,17 @@ export default function Dashboard({
           </div>
         </div>
 
+        {/* Mobile Chat Overlay - Creates depth effect behind chat */}
+        {!collapsedWidgets.chat && (
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden transition-all duration-300 ease-in-out"
+            onClick={() =>
+              setCollapsedWidgets((prev) => ({ ...prev, chat: true }))
+            }
+            aria-label="Close chat overlay"
+          />
+        )}
+
         {/* AI Chat Interface - Bottom Anchored */}
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-2xl backdrop-blur-sm rounded-t-xl lg:rounded-t-none transition-all duration-300 ease-in-out">
           <div className="max-w-7xl mx-auto">

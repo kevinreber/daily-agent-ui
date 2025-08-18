@@ -7,6 +7,7 @@ import {
   type CalendarData,
   type TodoData,
 } from "../lib/api";
+import Clock from "./Clock";
 
 interface DashboardProps {
   userName?: string;
@@ -31,7 +32,6 @@ export default function Dashboard({
   initialTodos,
   serverErrors,
 }: DashboardProps) {
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<WeatherData | null>(
     initialWeather || null
   );
@@ -121,11 +121,6 @@ export default function Dashboard({
     };
   });
   const chatContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Auto-scroll chat to bottom when new messages are added
   useEffect(() => {
@@ -406,25 +401,8 @@ export default function Dashboard({
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
   const getGreeting = () => {
-    const hour = currentTime.getHours();
+    const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
     if (hour < 17) return "Good afternoon";
     return "Good evening";
@@ -479,14 +457,7 @@ export default function Dashboard({
                     : "⬇️"}
                 </span>
               </button>
-              <div className="text-right">
-                <div className="text-lg sm:text-2xl font-mono font-bold text-gray-900 dark:text-white">
-                  {formatTime(currentTime)}
-                </div>
-                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                  {formatDate(currentTime)}
-                </div>
-              </div>
+              <Clock userName={userName} className="font-mono" />
             </div>
           </div>
         </div>

@@ -175,7 +175,7 @@ export default function Dashboard({
 
   // Get filtered command suggestions
   const getCommandSuggestions = (input: string) => {
-    if (!input.startsWith("/")) return [];
+    if (!input.startsWith("/") || input.includes(" ")) return [];
 
     const searchTerm = input.toLowerCase();
     return slashCommands.filter(
@@ -336,7 +336,8 @@ export default function Dashboard({
       return;
     }
 
-    const userMessage = commandResult || userInput;
+    // For slash commands, send the actual command, not the translated action
+    const userMessage = userInput; // Always send what the user actually typed
     setIsLoadingChat(true);
 
     // Add user message to history immediately (show original input, not translated command)
@@ -357,7 +358,11 @@ export default function Dashboard({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showCommandSuggestions && chatMessage.startsWith("/")) {
+    if (
+      showCommandSuggestions &&
+      chatMessage.startsWith("/") &&
+      !chatMessage.includes(" ")
+    ) {
       const suggestions = getCommandSuggestions(chatMessage);
 
       if (e.key === "ArrowDown") {
@@ -930,36 +935,74 @@ export default function Dashboard({
                           : "mr-6 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       } rounded-lg p-3 text-sm`}
                     >
-                      <ReactMarkdown
-                        components={{
-                          p: ({ children }) => (
-                            <p className="mb-2 last:mb-0">{children}</p>
-                          ),
-                          ul: ({ children }) => (
-                            <ul className="list-disc pl-4 mb-2">{children}</ul>
-                          ),
-                          ol: ({ children }) => (
-                            <ol className="list-decimal pl-4 mb-2">
-                              {children}
-                            </ol>
-                          ),
-                          li: ({ children }) => (
-                            <li className="mb-1">{children}</li>
-                          ),
-                          strong: ({ children }) => (
-                            <strong className="font-semibold">
-                              {children}
-                            </strong>
-                          ),
-                          code: ({ children }) => (
-                            <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded text-xs">
-                              {children}
-                            </code>
-                          ),
-                        }}
-                      >
-                        {message.message}
-                      </ReactMarkdown>
+                      {message.type === "user" &&
+                      message.message.startsWith("/") ? (
+                        // Special rendering for slash commands
+                        <div>
+                          {(() => {
+                            const messageText = message.message;
+                            const spaceIndex = messageText.indexOf(" ");
+
+                            if (spaceIndex === -1) {
+                              // Just the command, no additional text
+                              return (
+                                <span className="font-bold text-yellow-200 bg-blue-700/50 px-1 rounded">
+                                  {messageText}
+                                </span>
+                              );
+                            } else {
+                              // Command + additional text
+                              const command = messageText.substring(
+                                0,
+                                spaceIndex
+                              );
+                              const rest = messageText.substring(spaceIndex);
+                              return (
+                                <>
+                                  <span className="font-bold text-yellow-200 bg-blue-700/50 px-1 rounded">
+                                    {command}
+                                  </span>
+                                  <span className="text-white/90">{rest}</span>
+                                </>
+                              );
+                            }
+                          })()}
+                        </div>
+                      ) : (
+                        // Regular markdown rendering for non-slash-command messages
+                        <ReactMarkdown
+                          components={{
+                            p: ({ children }) => (
+                              <p className="mb-2 last:mb-0">{children}</p>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="list-disc pl-4 mb-2">
+                                {children}
+                              </ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="list-decimal pl-4 mb-2">
+                                {children}
+                              </ol>
+                            ),
+                            li: ({ children }) => (
+                              <li className="mb-1">{children}</li>
+                            ),
+                            strong: ({ children }) => (
+                              <strong className="font-semibold">
+                                {children}
+                              </strong>
+                            ),
+                            code: ({ children }) => (
+                              <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded text-xs">
+                                {children}
+                              </code>
+                            ),
+                          }}
+                        >
+                          {message.message}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   ))}
 
@@ -1060,63 +1103,65 @@ export default function Dashboard({
               {/* Input Area - Always visible */}
               <div className="relative border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
                 {/* Command Suggestions - Floating above input */}
-                {showCommandSuggestions && chatMessage.startsWith("/") && (
-                  <div className="absolute bottom-full left-0 right-0 mb-1 z-10">
-                    <div className="mx-3 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200/60 dark:border-gray-700/60 rounded-lg shadow-lg">
-                      <div className="px-3 py-1 border-b border-gray-200/60 dark:border-gray-700/60">
-                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
-                          <span>Commands</span>
-                          <span>↑↓ navigate • ↵ select • esc close</span>
+                {showCommandSuggestions &&
+                  chatMessage.startsWith("/") &&
+                  !chatMessage.includes(" ") && (
+                    <div className="absolute bottom-full left-0 right-0 mb-1 z-10">
+                      <div className="mx-3 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200/60 dark:border-gray-700/60 rounded-lg shadow-lg">
+                        <div className="px-3 py-1 border-b border-gray-200/60 dark:border-gray-700/60">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                            <span>Commands</span>
+                            <span>↑↓ navigate • ↵ select • esc close</span>
+                          </div>
+                        </div>
+                        <div className="p-2 space-y-1 max-h-48 overflow-y-auto">
+                          {getCommandSuggestions(chatMessage).map(
+                            (cmd, index) => (
+                              <button
+                                key={index}
+                                onClick={() => {
+                                  setChatMessage(cmd.command + " ");
+                                  setShowCommandSuggestions(false);
+                                  setSelectedCommandIndex(0);
+                                }}
+                                className={`w-full flex items-center space-x-2 p-2 text-left rounded-md transition-colors text-sm group ${
+                                  index === selectedCommandIndex
+                                    ? "bg-blue-100/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100"
+                                    : "hover:bg-gray-100/80 dark:hover:bg-gray-700/80"
+                                }`}
+                              >
+                                <span className="text-sm">{cmd.icon}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-gray-900 dark:text-white text-sm">
+                                    {cmd.command}
+                                    {cmd.aliases.length > 0 && (
+                                      <span className="text-gray-500 dark:text-gray-400 font-normal text-xs ml-1">
+                                        ({cmd.aliases.join(", ")})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-gray-500 dark:text-gray-400 text-xs truncate">
+                                    {cmd.description}
+                                  </div>
+                                </div>
+                                <div className="text-xs text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  ↵
+                                </div>
+                              </button>
+                            )
+                          )}
+                          {getCommandSuggestions(chatMessage).length === 0 && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-3">
+                              No commands found. Try{" "}
+                              <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-xs">
+                                /help
+                              </code>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="p-2 space-y-1 max-h-48 overflow-y-auto">
-                        {getCommandSuggestions(chatMessage).map(
-                          (cmd, index) => (
-                            <button
-                              key={index}
-                              onClick={() => {
-                                setChatMessage(cmd.command + " ");
-                                setShowCommandSuggestions(false);
-                                setSelectedCommandIndex(0);
-                              }}
-                              className={`w-full flex items-center space-x-2 p-2 text-left rounded-md transition-colors text-sm group ${
-                                index === selectedCommandIndex
-                                  ? "bg-blue-100/80 dark:bg-blue-900/50 text-blue-900 dark:text-blue-100"
-                                  : "hover:bg-gray-100/80 dark:hover:bg-gray-700/80"
-                              }`}
-                            >
-                              <span className="text-sm">{cmd.icon}</span>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-gray-900 dark:text-white text-sm">
-                                  {cmd.command}
-                                  {cmd.aliases.length > 0 && (
-                                    <span className="text-gray-500 dark:text-gray-400 font-normal text-xs ml-1">
-                                      ({cmd.aliases.join(", ")})
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-gray-500 dark:text-gray-400 text-xs truncate">
-                                  {cmd.description}
-                                </div>
-                              </div>
-                              <div className="text-xs text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                ↵
-                              </div>
-                            </button>
-                          )
-                        )}
-                        {getCommandSuggestions(chatMessage).length === 0 && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 text-center py-3">
-                            No commands found. Try{" "}
-                            <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-xs">
-                              /help
-                            </code>
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
                 <div className="flex space-x-2">
                   <input
                     type="text"
@@ -1126,8 +1171,12 @@ export default function Dashboard({
                       const value = e.target.value;
                       setChatMessage(value);
 
-                      // Show command suggestions when typing slash commands
-                      if (value.startsWith("/") && value.length > 0) {
+                      // Show command suggestions only when actively typing a command (no space yet)
+                      if (
+                        value.startsWith("/") &&
+                        value.length > 0 &&
+                        !value.includes(" ")
+                      ) {
                         setShowCommandSuggestions(true);
                         setSelectedCommandIndex(0); // Reset selection
                       } else {
@@ -1137,7 +1186,11 @@ export default function Dashboard({
                     }}
                     onKeyDown={handleKeyDown}
                     disabled={isLoadingChat}
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50 transition-colors text-sm"
+                    className={`flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50 transition-all text-sm ${
+                      chatMessage.startsWith("/")
+                        ? "text-blue-600 dark:text-blue-300 font-medium border-blue-300 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-900/20"
+                        : ""
+                    }`}
                     autoComplete="off"
                   />
                   <button

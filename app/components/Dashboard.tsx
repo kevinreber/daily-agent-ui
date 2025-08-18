@@ -78,6 +78,54 @@ export default function Dashboard({
     }
   }, [chatHistory]);
 
+  // Send chat message to proxy API (no CORS issues!)
+  const sendChatMessage = async (message: string) => {
+    try {
+      const response = await fetch("/api/v1/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Add AI response to history
+        setChatHistory((prev) => [
+          ...prev,
+          {
+            type: "ai",
+            message: data.response,
+            timestamp: data.timestamp,
+          },
+        ]);
+      } else {
+        // Add error message as AI response
+        setChatHistory((prev) => [
+          ...prev,
+          {
+            type: "ai",
+            message: data.error || "Something went wrong",
+            timestamp: data.timestamp || new Date().toISOString(),
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Chat error:", error);
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          type: "ai",
+          message:
+            "Sorry, I'm having trouble connecting to the AI service right now. Please try again later.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    }
+  };
+
   const toggleWidget = (widgetName: string) => {
     setCollapsedWidgets((prev) => ({
       ...prev,
@@ -173,7 +221,7 @@ export default function Dashboard({
     setChatMessage("");
     setIsLoadingChat(true);
 
-    // Add user message to history
+    // Add user message to history immediately
     setChatHistory((prev) => [
       ...prev,
       {
@@ -184,28 +232,7 @@ export default function Dashboard({
     ]);
 
     try {
-      const response = await apiClient.sendChatMessage(userMessage);
-
-      // Add AI response to history
-      setChatHistory((prev) => [
-        ...prev,
-        {
-          type: "ai",
-          message: response.response,
-          timestamp: response.timestamp,
-        },
-      ]);
-    } catch (error) {
-      // Add error message to history
-      setChatHistory((prev) => [
-        ...prev,
-        {
-          type: "ai",
-          message:
-            "Sorry, I'm having trouble connecting to the AI service right now. Please try again later.",
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      await sendChatMessage(userMessage);
     } finally {
       setIsLoadingChat(false);
     }
@@ -794,6 +821,7 @@ export default function Dashboard({
                     onKeyPress={handleKeyPress}
                     disabled={isLoadingChat}
                     className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50 transition-colors text-sm"
+                    autoComplete="off"
                   />
                   <button
                     onClick={handleSendMessage}

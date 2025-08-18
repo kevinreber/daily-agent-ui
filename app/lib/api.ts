@@ -315,10 +315,17 @@ export class ServerAIAgentAPI {
 
   constructor() {
     // Use Node.js environment variables for server-side
-    this.baseURL = process.env.VITE_AI_AGENT_API_URL || "http://localhost:8001";
+    // Only access process.env on server-side (Node.js environment)
+    if (typeof window === "undefined") {
+      this.baseURL =
+        process.env.VITE_AI_AGENT_API_URL || "http://localhost:8001";
 
-    if (process.env.VITE_DEBUG === "true") {
-      console.log(`🔗 Server AI Agent API URL: ${this.baseURL}`);
+      if (process.env.VITE_DEBUG === "true") {
+        console.log(`🔗 Server AI Agent API URL: ${this.baseURL}`);
+      }
+    } else {
+      // Fallback for browser (shouldn't be used)
+      this.baseURL = "http://localhost:8001";
     }
   }
 
@@ -389,6 +396,19 @@ export class ServerAIAgentAPI {
       return await this.fetchAPI("/tools/todos");
     } catch (error) {
       console.warn("Failed to fetch todo data:", error);
+      throw error;
+    }
+  }
+
+  // AI Chat (server-side)
+  async sendChatMessage(message: string): Promise<ChatResponse> {
+    try {
+      return await this.fetchAPI("/chat", {
+        method: "POST",
+        body: JSON.stringify({ message }),
+      });
+    } catch (error) {
+      console.warn("Failed to send chat message:", error);
       throw error;
     }
   }

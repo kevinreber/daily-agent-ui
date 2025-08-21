@@ -5,6 +5,70 @@ All notable changes to the Daily Agent UI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-08-20 - 🚀 **PHASE 2.1 FOUNDATION: Enhanced Calendar Intelligence**
+
+### 🎉 **MAJOR BACKEND UPGRADE: Full Calendar CRUD Available**
+
+- **Backend Calendar CRUD Complete**: UI now backed by complete calendar management infrastructure
+- **Calendar Data Visibility Fixed**: Calendar widgets and AI chat now properly display real events
+- **Production-Ready Integration**: Stable connection to enhanced MCP server with full calendar capabilities
+- **Enhanced AI Responses**: AI assistant can now reliably read and respond to calendar queries
+
+### 🐛 **Critical UI Fixes**
+
+- **Fixed Calendar Widget Data**: Calendar widgets now properly display user's actual events
+- **Restored AI Calendar Intelligence**: AI chat responses about calendar events now work correctly
+- **Improved Data Loading**: Calendar data loads reliably without "no events" errors
+- **Enhanced Error Handling**: Better user feedback for calendar-related operations
+
+### 📊 **Dashboard Improvements**
+
+- **Reliable Calendar Widget**: Shows accurate event data from all connected calendars
+- **Enhanced AI Chat**: AI responses about schedule and events are now accurate and helpful
+- **Improved Data Refresh**: Calendar data updates more reliably across dashboard widgets
+- **Better Loading States**: Improved feedback during calendar data operations
+
+### 🔧 **Infrastructure Enhancements**
+
+- **MCP Server v0.3.0 Integration**: Compatible with latest backend featuring full calendar CRUD
+- **Enhanced API Communication**: Improved data flow between UI, AI agent, and MCP server
+- **Robust Error Recovery**: Better handling of calendar API issues and network problems
+- **Performance Optimization**: Reduced calendar data loading overhead
+
+### 🎯 **User Experience Improvements**
+
+**Calendar functionality now works reliably:**
+- Calendar widgets show actual events ✅ **FIXED**
+- AI responses about schedule are accurate ✅ **FIXED** 
+- Chat commands like `/calendar` work properly ✅ **FIXED**
+- Event creation through chat continues working smoothly ✅
+
+### 🚀 **Ready for Advanced Features**
+
+**Infrastructure prepared for Phase 2.2:**
+- Calendar event editing UI components
+- Calendar event deletion confirmations
+- Advanced scheduling suggestions
+- Enhanced calendar management workflows
+
+### 📱 **Continued Features**
+
+- **AI-Powered Event Creation**: Create calendar events through natural language
+- **Interactive Dashboard**: Real-time widgets with reliable data
+- **Mobile-Optimized Design**: Responsive across all device sizes
+- **Slash Commands**: Quick access to AI functions (`/calendar`, `/weather`, etc.)
+- **Real-Time Chat**: Immediate AI responses with accurate data
+
+### 🔮 **Next Phase Preview**
+
+**Phase 2.2 will add:**
+- Calendar event editing interface
+- Event deletion confirmations and management
+- Advanced scheduling tools and suggestions
+- Enhanced calendar visualization features
+
+---
+
 ## [0.2.0] - 2025-08-20 - 🎉 **PHASE 1.5 COMPLETE: Interactive Calendar Creation**
 
 ### 🚀 **Major Features Added**

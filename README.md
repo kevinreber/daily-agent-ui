@@ -1,15 +1,16 @@
 # 🖥️ Daily Agent UI
 
-A modern, interactive web interface for your **Daily AI Assistant**. Features real-time dashboards, conversational AI chat, and **calendar event creation** through natural language. Built with Remix (React Router) and Tailwind CSS for optimal performance and user experience.
+A modern, interactive web interface for your **Daily AI Assistant**. Features real-time dashboards, conversational AI chat, and **reliable calendar management** through natural language. Built with Remix (React Router) and Tailwind CSS for optimal performance and user experience.
 
-## 🎉 **NEW: AI-Powered Calendar Creation!**
+## 🚀 **ENHANCED: Reliable Calendar Intelligence!**
 
-✨ **Phase 1.5 Complete** - Create calendar events through conversational chat interface!
+✨ **Phase 2.1 Foundation** - Calendar data now displays correctly with backend CRUD capabilities!
 
 ## ✨ Key Features
 
 ### 🗣️ **Conversational AI Interface**
 
+- **✅ FIXED: Calendar Queries** - "What's on my calendar tomorrow?" now shows real events
 - **Natural Language Calendar Creation** - "Schedule lunch with John tomorrow at noon"
 - **Smart Conflict Warnings** - AI alerts you about overlapping meetings
 - **Context-Aware Conversations** - Remembers your preferences and history
@@ -17,7 +18,7 @@ A modern, interactive web interface for your **Daily AI Assistant**. Features re
 
 ### 📊 **Live Data Dashboards**
 
-- **📅 Calendar Widget** - Today's events from multiple Google calendars
+- **📅 Calendar Widget** - ✅ **FIXED**: Now shows your actual events from multiple Google calendars
 - **🌤️ Weather Widget** - Real-time conditions and forecasts
 - **💰 Financial Widget** - Live stock and crypto prices with change indicators
 - **✅ Todo Widget** - Task management with priority filtering

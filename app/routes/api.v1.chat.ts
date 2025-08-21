@@ -3,23 +3,34 @@ export async function action({ request }: { request: Request }) {
 
   try {
     const body = await request.json();
-    const { message } = body;
+    const { message, session_id } = body;
 
     if (!message?.trim()) {
       return new Response(JSON.stringify({ error: "Message is required" }), {
         status: 400,
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "API-Version": "v1",
         },
       });
     }
 
-    console.log(`💬 v1 API: Proxying message: ${message}`);
+    console.log(
+      `💬 v1 API: Proxying message: ${message} (session: ${session_id || "new"})`
+    );
 
     // Get AI Agent API URL from environment
     const aiAgentUrl =
       process.env.VITE_AI_AGENT_API_URL || "http://localhost:8001";
+
+    // Prepare request body with optional session ID
+    const requestBody: { message: string; session_id?: string } = {
+      message: message.trim(),
+    };
+
+    if (session_id) {
+      requestBody.session_id = session_id;
+    }
 
     // Proxy request to AI Agent API (server-to-server, no CORS!)
     const response = await fetch(`${aiAgentUrl}/chat`, {
@@ -27,7 +38,7 @@ export async function action({ request }: { request: Request }) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message: message.trim() }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -44,12 +55,14 @@ export async function action({ request }: { request: Request }) {
       JSON.stringify({
         success: true,
         response: aiResponse.response,
+        session_id: aiResponse.session_id,
+        new_session: aiResponse.new_session,
         timestamp: aiResponse.timestamp,
         version: "v1",
       }),
       {
         status: 200,
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "API-Version": "v1",
         },
@@ -67,7 +80,7 @@ export async function action({ request }: { request: Request }) {
       }),
       {
         status: 500,
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "API-Version": "v1",
         },

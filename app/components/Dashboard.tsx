@@ -46,6 +46,7 @@ export default function Dashboard({
   const [chatHistory, setChatHistory] = useState<
     Array<{ type: "user" | "ai"; message: string; timestamp: string }>
   >([]);
+  const [sessionId, setSessionId] = useState<string | null>(null); // Track conversation session
   const [loading, setLoading] = useState(
     !initialWeather && !initialFinancial && !initialCalendar && !initialTodos
   );
@@ -183,17 +184,31 @@ export default function Dashboard({
   // Send chat message to proxy API (no CORS issues!)
   const sendChatMessage = async (message: string) => {
     try {
+      // Prepare request body with session_id if available
+      const requestBody: { message: string; session_id?: string } = { message };
+      if (sessionId) {
+        requestBody.session_id = sessionId;
+      }
+
       const response = await fetch("/api/v1/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        // Store session_id for future messages
+        if (data.session_id && (!sessionId || data.new_session)) {
+          setSessionId(data.session_id);
+          console.log(
+            `💬 Session ${data.new_session ? "created" : "updated"}: ${data.session_id}`
+          );
+        }
+
         // Add AI response to history
         setChatHistory((prev) => [
           ...prev,
@@ -877,22 +892,54 @@ export default function Dashboard({
                   <div className="w-8 h-1 bg-gray-300 dark:bg-gray-600 rounded-full transition-colors duration-200"></div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center">
-                    🤖 AI Assistant
-                  </h2>
-                  <svg
-                    className={`w-4 h-4 text-gray-500 transition-transform duration-300 ease-in-out ${collapsedWidgets.chat ? "rotate-180" : ""}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                  <div className="flex items-center space-x-2">
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center">
+                      🤖 AI Assistant
+                    </h2>
+                    {sessionId && (
+                      <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                          Memory Active
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {sessionId && !collapsedWidgets.chat && (
+                      <button
+                        onClick={() => {
+                          setSessionId(null);
+                          setChatHistory([
+                            {
+                              type: "ai",
+                              message:
+                                "Conversation memory cleared. Starting fresh!",
+                              timestamp: new Date().toISOString(),
+                            },
+                          ]);
+                          console.log("💬 Session cleared");
+                        }}
+                        className="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 rounded transition-colors"
+                        title="Clear conversation memory"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <svg
+                      className={`w-4 h-4 text-gray-500 transition-transform duration-300 ease-in-out ${collapsedWidgets.chat ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
                 </div>
               </div>
               {/* Messages Area - Only show when not collapsed */}

@@ -84,15 +84,71 @@ export class AIAgentAPI {
     }
   }
 
-  // AI Chat
-  async sendChatMessage(message: string): Promise<ChatResponse> {
+  // AI Chat with session support
+  async sendChatMessage(
+    message: string,
+    sessionId?: string
+  ): Promise<ChatResponse> {
     try {
+      const body: { message: string; session_id?: string } = { message };
+      if (sessionId) {
+        body.session_id = sessionId;
+      }
+
       return await this.fetchAPI("/chat", {
         method: "POST",
-        body: JSON.stringify({ message }),
+        body: JSON.stringify(body),
       });
     } catch (error) {
       console.warn("Failed to send chat message:", error);
+      throw error;
+    }
+  }
+
+  // Session management methods
+  async createSession(
+    metadata?: any
+  ): Promise<{ session_id: string; created_at: string }> {
+    try {
+      return await this.fetchAPI("/sessions", {
+        method: "POST",
+        body: JSON.stringify({ metadata }),
+      });
+    } catch (error) {
+      console.warn("Failed to create session:", error);
+      throw error;
+    }
+  }
+
+  async getSessionInfo(sessionId: string): Promise<any> {
+    try {
+      return await this.fetchAPI(`/sessions/${sessionId}`);
+    } catch (error) {
+      console.warn("Failed to get session info:", error);
+      throw error;
+    }
+  }
+
+  async deleteSession(sessionId: string): Promise<{ message: string }> {
+    try {
+      return await this.fetchAPI(`/sessions/${sessionId}`, {
+        method: "DELETE",
+      });
+    } catch (error) {
+      console.warn("Failed to delete session:", error);
+      throw error;
+    }
+  }
+
+  async listSessions(): Promise<{
+    sessions: string[];
+    count: number;
+    memory_stats: any;
+  }> {
+    try {
+      return await this.fetchAPI("/sessions");
+    } catch (error) {
+      console.warn("Failed to list sessions:", error);
       throw error;
     }
   }
@@ -298,6 +354,8 @@ export interface TodoData {
 
 export interface ChatResponse {
   response: string;
+  session_id: string;
+  new_session: boolean;
   timestamp: string;
 }
 
@@ -400,12 +458,20 @@ export class ServerAIAgentAPI {
     }
   }
 
-  // AI Chat (server-side)
-  async sendChatMessage(message: string): Promise<ChatResponse> {
+  // AI Chat (server-side) with session support
+  async sendChatMessage(
+    message: string,
+    sessionId?: string
+  ): Promise<ChatResponse> {
     try {
+      const body: { message: string; session_id?: string } = { message };
+      if (sessionId) {
+        body.session_id = sessionId;
+      }
+
       return await this.fetchAPI("/chat", {
         method: "POST",
-        body: JSON.stringify({ message }),
+        body: JSON.stringify(body),
       });
     } catch (error) {
       console.warn("Failed to send chat message:", error);

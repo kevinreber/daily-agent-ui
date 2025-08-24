@@ -6,8 +6,10 @@ import {
   type FinancialData,
   type CalendarData,
   type TodoData,
+  type CommuteOptionsData,
 } from "../lib/api";
 import Clock from "./Clock";
+import { CommuteDashboard } from "./CommuteDashboard";
 
 interface DashboardProps {
   userName?: string;
@@ -16,11 +18,13 @@ interface DashboardProps {
   initialFinancial?: FinancialData | null;
   initialCalendar?: CalendarData | null;
   initialTodos?: TodoData | null;
+  initialCommute?: CommuteOptionsData | null;
   serverErrors?: {
     weather?: string | null;
     financial?: string | null;
     calendar?: string | null;
     todos?: string | null;
+    commute?: string | null;
   };
 }
 
@@ -30,6 +34,7 @@ export default function Dashboard({
   initialFinancial,
   initialCalendar,
   initialTodos,
+  initialCommute,
   serverErrors,
 }: DashboardProps) {
   const [weather, setWeather] = useState<WeatherData | null>(
@@ -846,6 +851,11 @@ export default function Dashboard({
               </>
             )}
           </div>
+        </div>
+
+        {/* Commute Dashboard - Full Width */}
+        <div className="mb-6">
+          <CommuteDashboard />
         </div>
 
         {/* Mobile Chat Overlay - Creates depth effect behind chat */}

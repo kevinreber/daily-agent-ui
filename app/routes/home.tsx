@@ -17,12 +17,13 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   try {
     // Fetch all dashboard data on the server-side (no CORS issues!)
-    const [weatherData, financialData, calendarData, todoData] =
+    const [weatherData, financialData, calendarData, todoData, commuteData] =
       await Promise.allSettled([
         serverApiClient.getWeather("San Francisco"),
         serverApiClient.getFinancialData(["MSFT", "BTC", "ETH", "NVDA"]),
         serverApiClient.getCalendar(),
         serverApiClient.getTodos(),
+        serverApiClient.getCommuteOptions("to_work"), // Add commute data
       ]);
 
     console.log("✅ Server-side loader: Dashboard data fetched successfully");
@@ -36,6 +37,7 @@ export async function loader({ context }: Route.LoaderArgs) {
         financialData.status === "fulfilled" ? financialData.value : null,
       calendar: calendarData.status === "fulfilled" ? calendarData.value : null,
       todos: todoData.status === "fulfilled" ? todoData.value : null,
+      commute: commuteData.status === "fulfilled" ? commuteData.value : null,
       // Track which requests failed
       errors: {
         weather:
@@ -51,6 +53,10 @@ export async function loader({ context }: Route.LoaderArgs) {
             ? calendarData.reason?.message
             : null,
         todos: todoData.status === "rejected" ? todoData.reason?.message : null,
+        commute:
+          commuteData.status === "rejected"
+            ? commuteData.reason?.message
+            : null,
       },
     };
   } catch (error) {
@@ -64,11 +70,13 @@ export async function loader({ context }: Route.LoaderArgs) {
       financial: null,
       calendar: null,
       todos: null,
+      commute: null,
       errors: {
         weather: "Server-side fetch failed",
         financial: "Server-side fetch failed",
         calendar: "Server-side fetch failed",
         todos: "Server-side fetch failed",
+        commute: "Server-side fetch failed",
       },
     };
   }
@@ -82,6 +90,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       initialFinancial={loaderData.financial}
       initialCalendar={loaderData.calendar}
       initialTodos={loaderData.todos}
+      initialCommute={loaderData.commute}
       serverErrors={loaderData.errors}
     />
   );

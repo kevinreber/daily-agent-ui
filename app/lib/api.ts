@@ -107,6 +107,77 @@ export class AIAgentAPI {
     }
   }
 
+  // Traffic/Commute methods
+  async getBasicCommute(
+    origin: string,
+    destination: string,
+    mode: string = "driving"
+  ): Promise<BasicCommuteData> {
+    try {
+      return await this.fetchAPI("/tools/commute", {
+        method: "POST",
+        body: JSON.stringify({
+          origin,
+          destination,
+          mode,
+        }),
+      });
+    } catch (error) {
+      console.warn("Failed to fetch basic commute data:", error);
+      return this.getMockBasicCommute();
+    }
+  }
+
+  async getCommuteOptions(
+    direction: string,
+    departureTime?: string,
+    includeDriving: boolean = true,
+    includeTransit: boolean = true
+  ): Promise<CommuteOptionsData> {
+    try {
+      const body: any = {
+        direction,
+        include_driving: includeDriving,
+        include_transit: includeTransit,
+      };
+      if (departureTime) {
+        body.departure_time = departureTime;
+      }
+
+      return await this.fetchAPI("/tools/commute-options", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      console.warn("Failed to fetch commute options:", error);
+      return this.getMockCommuteOptions();
+    }
+  }
+
+  async getShuttleSchedule(
+    origin: string,
+    destination: string,
+    departureTime?: string
+  ): Promise<ShuttleScheduleData> {
+    try {
+      const body: any = {
+        origin,
+        destination,
+      };
+      if (departureTime) {
+        body.departure_time = departureTime;
+      }
+
+      return await this.fetchAPI("/tools/shuttle", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      console.warn("Failed to fetch shuttle schedule:", error);
+      return this.getMockShuttleSchedule();
+    }
+  }
+
   // Fallback mock data methods
   private getMockWeather(): WeatherData {
     return {
@@ -233,6 +304,105 @@ export class AIAgentAPI {
       timestamp: new Date().toISOString(),
     };
   }
+
+  private getMockBasicCommute(): BasicCommuteData {
+    return {
+      tool: "commute",
+      data: {
+        duration_minutes: 35,
+        distance_miles: 18.2,
+        route_summary: "via US-101 S and I-880 S",
+        traffic_status: "Moderate traffic",
+        origin: "San Francisco, CA",
+        destination: "Mountain View, CA",
+        mode: "driving",
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private getMockCommuteOptions(): CommuteOptionsData {
+    return {
+      tool: "commute_options",
+      data: {
+        direction: "to_work",
+        query_time: new Date().toISOString(),
+        driving: {
+          duration_minutes: 42,
+          distance_miles: 28.5,
+          route_summary: "South SF → LinkedIn",
+          traffic_status: "Heavy traffic",
+          departure_time: "8:00 AM",
+          arrival_time: "8:42 AM",
+          estimated_fuel_gallons: 1.1,
+        },
+        transit: {
+          total_duration_minutes: 85,
+          caltrain_duration_minutes: 47,
+          shuttle_duration_minutes: 11,
+          walking_duration_minutes: 3,
+          next_departures: [
+            {
+              departure_time: "8:15 AM",
+              arrival_time: "9:02 AM",
+              train_number: "152",
+              platform: "TBD",
+              delay_minutes: 0,
+            },
+            {
+              departure_time: "8:45 AM",
+              arrival_time: "9:32 AM",
+              train_number: "156",
+              platform: "TBD",
+              delay_minutes: 2,
+            },
+          ],
+          shuttle_departures: [
+            {
+              departure_time: "9:11 AM",
+              stops: ["9:11 AM", "9:19 AM", "9:22 AM"],
+            },
+            {
+              departure_time: "9:26 AM",
+              stops: ["9:26 AM", "9:34 AM", "9:37 AM"],
+            },
+          ],
+          transfer_time_minutes: 5,
+        },
+        recommendation:
+          "Take Caltrain - heavy traffic makes driving significantly slower (42 min vs 85 min total)",
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private getMockShuttleSchedule(): ShuttleScheduleData {
+    return {
+      tool: "shuttle",
+      data: {
+        origin: "mountain_view_caltrain",
+        destination: "linkedin_transit_center",
+        duration_minutes: 11,
+        next_departures: [
+          {
+            departure_time: "9:11 AM",
+            stops: ["9:11 AM", "9:19 AM", "9:22 AM"],
+          },
+          {
+            departure_time: "9:26 AM",
+            stops: ["9:26 AM", "9:34 AM", "9:37 AM"],
+          },
+          {
+            departure_time: "9:41 AM",
+            stops: ["9:41 AM", "9:49 AM", "9:52 AM"],
+          },
+        ],
+        service_hours: "6:00 AM - 10:00 PM",
+        frequency_minutes: "15",
+      },
+      timestamp: new Date().toISOString(),
+    };
+  }
 }
 
 // Type definitions
@@ -303,6 +473,79 @@ export interface ChatResponse {
 
 export interface BriefingData {
   briefing: string;
+  timestamp: string;
+}
+
+// Traffic/Commute data interfaces
+export interface BasicCommuteData {
+  tool: string;
+  data: {
+    duration_minutes: number;
+    distance_miles: number;
+    route_summary: string;
+    traffic_status: string;
+    origin: string;
+    destination: string;
+    mode: string;
+  };
+  timestamp: string;
+}
+
+export interface DrivingOption {
+  duration_minutes: number;
+  distance_miles: number;
+  route_summary: string;
+  traffic_status: string;
+  departure_time: string;
+  arrival_time: string;
+  estimated_fuel_gallons: number;
+}
+
+export interface CaltrainDeparture {
+  departure_time: string;
+  arrival_time: string;
+  train_number: string;
+  platform?: string;
+  delay_minutes: number;
+}
+
+export interface ShuttleDeparture {
+  departure_time: string;
+  stops: string[];
+}
+
+export interface TransitOption {
+  total_duration_minutes: number;
+  caltrain_duration_minutes: number;
+  shuttle_duration_minutes: number;
+  walking_duration_minutes: number;
+  next_departures: CaltrainDeparture[];
+  shuttle_departures: ShuttleDeparture[];
+  transfer_time_minutes: number;
+}
+
+export interface CommuteOptionsData {
+  tool: string;
+  data: {
+    direction: string;
+    query_time: string;
+    driving?: DrivingOption;
+    transit?: TransitOption;
+    recommendation: string;
+  };
+  timestamp: string;
+}
+
+export interface ShuttleScheduleData {
+  tool: string;
+  data: {
+    origin: string;
+    destination: string;
+    duration_minutes: number;
+    next_departures: ShuttleDeparture[];
+    service_hours: string;
+    frequency_minutes: string;
+  };
   timestamp: string;
 }
 
@@ -409,6 +652,77 @@ export class ServerAIAgentAPI {
       });
     } catch (error) {
       console.warn("Failed to send chat message:", error);
+      throw error;
+    }
+  }
+
+  // Traffic/Commute methods (server-side)
+  async getBasicCommute(
+    origin: string,
+    destination: string,
+    mode: string = "driving"
+  ): Promise<BasicCommuteData> {
+    try {
+      return await this.fetchAPI("/tools/commute", {
+        method: "POST",
+        body: JSON.stringify({
+          origin,
+          destination,
+          mode,
+        }),
+      });
+    } catch (error) {
+      console.warn("Failed to fetch basic commute data:", error);
+      throw error;
+    }
+  }
+
+  async getCommuteOptions(
+    direction: string,
+    departureTime?: string,
+    includeDriving: boolean = true,
+    includeTransit: boolean = true
+  ): Promise<CommuteOptionsData> {
+    try {
+      const body: any = {
+        direction,
+        include_driving: includeDriving,
+        include_transit: includeTransit,
+      };
+      if (departureTime) {
+        body.departure_time = departureTime;
+      }
+
+      return await this.fetchAPI("/tools/commute-options", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      console.warn("Failed to fetch commute options:", error);
+      throw error;
+    }
+  }
+
+  async getShuttleSchedule(
+    origin: string,
+    destination: string,
+    departureTime?: string
+  ): Promise<ShuttleScheduleData> {
+    try {
+      const body: any = {
+        origin,
+        destination,
+      };
+      if (departureTime) {
+        body.departure_time = departureTime;
+      }
+
+      return await this.fetchAPI("/tools/shuttle", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      console.warn("Failed to fetch shuttle schedule:", error);
       throw error;
     }
   }

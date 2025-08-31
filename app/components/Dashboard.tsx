@@ -7,6 +7,7 @@ import {
   type CalendarData,
   type TodoData,
   type CommuteOptionsData,
+  type TodoBucket,
 } from "../lib/api";
 import Clock from "./Clock";
 import { CommuteDashboard } from "./CommuteDashboard";
@@ -47,6 +48,7 @@ export default function Dashboard({
     initialCalendar || null
   );
   const [todos, setTodos] = useState<TodoData | null>(initialTodos || null);
+  const [selectedBucket, setSelectedBucket] = useState<TodoBucket | "all">("all");
   const [chatMessage, setChatMessage] = useState("");
   const [chatHistory, setChatHistory] = useState<
     Array<{ type: "user" | "ai"; message: string; timestamp: string }>
@@ -92,7 +94,7 @@ export default function Dashboard({
     {
       command: "/tasks",
       aliases: ["/todos", "/todo"],
-      description: "Show your task list",
+      description: "Show your task list (try /tasks work or /tasks all)",
       icon: "✅",
       action: "What tasks do I have to complete today?",
     },
@@ -288,7 +290,7 @@ export default function Dashboard({
         }
 
         if (!initialTodos) {
-          const todoData = await apiClient.getTodos();
+          const todoData = await apiClient.getTodos(selectedBucket === "all" ? undefined : selectedBucket);
           setTodos(todoData);
         }
 
@@ -319,7 +321,29 @@ export default function Dashboard({
     initialCalendar,
     initialTodos,
     serverErrors,
+    selectedBucket,
   ]);
+
+  // Refresh todos when bucket selection changes
+  const refreshTodos = async (bucket: TodoBucket | "all") => {
+    try {
+      setLoading(true);
+      const todoData = await apiClient.getTodos(bucket === "all" ? undefined : bucket);
+      setTodos(todoData);
+    } catch (error) {
+      console.error("Error refreshing todos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle bucket change
+  const handleBucketChange = async (bucket: TodoBucket | "all") => {
+    if (bucket !== selectedBucket) {
+      setSelectedBucket(bucket);
+      await refreshTodos(bucket);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!chatMessage.trim() || isLoadingChat) return;
@@ -770,14 +794,14 @@ export default function Dashboard({
                 {collapsedWidgets.todos &&
                   todos?.data?.total_pending !== undefined && (
                     <span className="ml-2 text-sm font-normal text-gray-600 dark:text-gray-400">
-                      {todos.data.total_pending} pending
+                      {todos.data.total_pending} pending ({selectedBucket === "all" ? "all" : selectedBucket})
                     </span>
                   )}
               </h2>
               <div className="flex items-center space-x-2">
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {todos?.data?.total_pending
-                    ? `${todos.data.total_pending} pending`
+                  {todos?.data?.total_pending !== undefined
+                    ? `${todos.data.total_pending} pending (${selectedBucket === "all" ? "all" : selectedBucket})`
                     : "Loading..."}
                 </span>
                 <button
@@ -805,6 +829,36 @@ export default function Dashboard({
             </div>
             {!collapsedWidgets.todos && (
               <>
+                {/* Bucket Selector */}
+                <div className="mb-3 border-b border-gray-100 dark:border-gray-700 pb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Bucket:
+                    </span>
+                    <button
+                      onClick={() => handleBucketChange("all")}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1">
+                    {(["all", "work", "home", "errands", "personal"] as const).map((bucket) => (
+                      <button
+                        key={bucket}
+                        onClick={() => handleBucketChange(bucket)}
+                        className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                          selectedBucket === bucket
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        }`}
+                      >
+                        {bucket === "all" ? "All" : bucket.charAt(0).toUpperCase() + bucket.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {loading ? (
                   <div className="space-y-2 animate-pulse">
                     {[1, 2, 3, 4].map((i) => (

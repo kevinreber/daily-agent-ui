@@ -75,12 +75,21 @@ export class AIAgentAPI {
   }
 
   // Todo data
-  async getTodos(): Promise<TodoData> {
+  async getTodos(bucket?: string): Promise<TodoData> {
     try {
-      return await this.fetchAPI("/tools/todos");
+      const params: any = {};
+      if (bucket) {
+        params.bucket = bucket;
+      }
+      
+      const queryString = Object.keys(params).length > 0 
+        ? `?${new URLSearchParams(params)}`
+        : '';
+      
+      return await this.fetchAPI(`/tools/todos${queryString}`);
     } catch (error) {
       console.warn("Failed to fetch todo data:", error);
-      return this.getMockTodos();
+      return this.getMockTodos(bucket);
     }
   }
 
@@ -261,37 +270,26 @@ export class AIAgentAPI {
     };
   }
 
-  private getMockTodos(): TodoData {
+  private getMockTodos(bucket?: string): TodoData {
+    const allTodos = [
+      { id: "1", text: "Review quarterly reports", completed: false, priority: "high", bucket: "work" },
+      { id: "2", text: "Update project timeline", completed: false, priority: "medium", bucket: "work" },
+      { id: "3", text: "Call insurance company", completed: false, priority: "low", bucket: "personal" },
+      { id: "4", text: "Book dentist appointment", completed: false, priority: "low", bucket: "personal" },
+      { id: "5", text: "Grocery shopping", completed: false, priority: "medium", bucket: "home" },
+      { id: "6", text: "Pick up dry cleaning", completed: false, priority: "low", bucket: "errands" },
+    ];
+
+    const items = bucket 
+      ? allTodos.filter(todo => todo.bucket === bucket)
+      : allTodos;
+
     return {
       tool: "todos",
       data: {
-        items: [
-          {
-            id: "1",
-            text: "Review quarterly reports",
-            completed: false,
-            priority: "high",
-          },
-          {
-            id: "2",
-            text: "Update project timeline",
-            completed: false,
-            priority: "medium",
-          },
-          {
-            id: "3",
-            text: "Call insurance company",
-            completed: false,
-            priority: "low",
-          },
-          {
-            id: "4",
-            text: "Book dentist appointment",
-            completed: false,
-            priority: "low",
-          },
-        ],
-        total_pending: 4,
+        items: items.map(({ bucket, ...item }) => item), // Remove bucket from items for compatibility
+        total_pending: items.filter(item => !item.completed).length,
+        bucket: bucket || null,
       },
       timestamp: new Date().toISOString(),
     };
@@ -462,9 +460,13 @@ export interface TodoData {
       priority: string;
     }>;
     total_pending: number;
+    bucket?: string | null; // Added bucket field
   };
   timestamp: string;
 }
+
+// Available todo buckets
+export type TodoBucket = "work" | "home" | "errands" | "personal";
 
 export interface ChatResponse {
   response: string;
@@ -634,9 +636,18 @@ export class ServerAIAgentAPI {
   }
 
   // Todo data
-  async getTodos(): Promise<TodoData> {
+  async getTodos(bucket?: string): Promise<TodoData> {
     try {
-      return await this.fetchAPI("/tools/todos");
+      const params: any = {};
+      if (bucket) {
+        params.bucket = bucket;
+      }
+      
+      const queryString = Object.keys(params).length > 0 
+        ? `?${new URLSearchParams(params)}`
+        : '';
+      
+      return await this.fetchAPI(`/tools/todos${queryString}`);
     } catch (error) {
       console.warn("Failed to fetch todo data:", error);
       throw error;
